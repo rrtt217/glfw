@@ -376,6 +376,34 @@ typedef struct _GLFWlibraryWGL
     GLFWbool                            ARB_context_flush_control;
 } _GLFWlibraryWGL;
 
+typedef struct _GLFWDXGIFallbackWin32
+{
+    GLFWbool            swapchainFallback;
+    GLFWbool            swapchainForce;
+    GLFWbool            interopActive;
+    GLFWbool            allowTearing;
+    GLFWbool            usesHelperContext;
+    int                 swapInterval;
+    HDC                 wglDC;
+    HGLRC               wglRC;
+    uint32_t            swapchainImageTexture;
+    uint64_t            swapchainImageHandle;
+    void*               device;
+    void*               deviceContext;
+    void*               swapchain;
+    void*               backBuffer;
+    void*               interopTexture;
+    void*               flipVertexShader;
+    void*               flipPixelShader;
+    void*               flipShaderResourceView;
+    void*               flipRenderTargetView;
+    void*               interopDevice;
+    void*               interopObject;
+    uint32_t            swapchainFormat;
+    uint32_t            colorPrimaries;
+    uint32_t            colorTransfer;
+} _GLFWDXGIFallbackWin32;
+
 // Win32-specific per-window data
 //
 typedef struct _GLFWwindowWin32
@@ -393,6 +421,7 @@ typedef struct _GLFWwindowWin32
     GLFWbool            scaleToMonitor;
     GLFWbool            keymenu;
     GLFWbool            showDefault;
+    _GLFWDXGIFallbackWin32 dxgi;
     GLFWbool            external;
     LONG_PTR            externalWindowProc;
 
@@ -527,6 +556,16 @@ void _glfwGetHMONITORContentScaleWin32(HMONITOR handle, float* xscale, float* ys
 
 GLFWbool _glfwCreateWindowWin32(_GLFWwindow* window, const _GLFWwndconfig* wndconfig, const _GLFWctxconfig* ctxconfig, const _GLFWfbconfig* fbconfig);
 void _glfwDestroyWindowWin32(_GLFWwindow* window);
+GLFWbool _glfwCreateDXGIFallbackWin32(_GLFWwindow* window,
+                                      const _GLFWctxconfig* ctxconfig,
+                                      const _GLFWfbconfig* fbconfig);
+void _glfwDestroyDXGIFallbackWin32(_GLFWwindow* window);
+void _glfwResizeDXGIFallbackWin32(_GLFWwindow* window, int width, int height);
+void _glfwSwapBuffersDXGIFallbackWin32(_GLFWwindow* window);
+float _glfwGetWindowMaxLuminanceDXGIWin32(_GLFWwindow *window);
+float _glfwGetWindowMinLuminanceDXGIWin32(_GLFWwindow *window);
+uint32_t _glfwGetWindowSwapchainImageTextureWin32(_GLFWwindow* window);
+uint64_t _glfwGetWindowSwapchainImageHandleWin32(_GLFWwindow* window);
 void _glfwSetWindowTitleWin32(_GLFWwindow* window, const char* title);
 void _glfwSetWindowIconWin32(_GLFWwindow* window, int count, const GLFWimage* images);
 void _glfwGetWindowPosWin32(_GLFWwindow* window, int* xpos, int* ypos);
@@ -618,4 +657,3 @@ void _glfwTerminateWGL(void);
 GLFWbool _glfwCreateContextWGL(_GLFWwindow* window,
                                const _GLFWctxconfig* ctxconfig,
                                const _GLFWfbconfig* fbconfig);
-
