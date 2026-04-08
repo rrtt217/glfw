@@ -722,6 +722,8 @@ static void activateTextInputV1(_GLFWwindow* window)
         return;
     zwp_text_input_v1_show_input_panel(window->wl.textInputV1);
     zwp_text_input_v1_activate(window->wl.textInputV1, _glfw.wl.seat, window->wl.surface);
+    window->wl.textInputStatus = GLFW_TRUE;
+    _glfwInputIMEStatus(window);
 }
 
 static void deactivateTextInputV1(_GLFWwindow* window)
@@ -730,6 +732,8 @@ static void deactivateTextInputV1(_GLFWwindow* window)
         return;
     zwp_text_input_v1_hide_input_panel(window->wl.textInputV1);
     zwp_text_input_v1_deactivate(window->wl.textInputV1, _glfw.wl.seat);
+    window->wl.textInputStatus = GLFW_FALSE;
+    _glfwInputIMEStatus(window);
 }
 
 #define WAYLAND_COLOR_FACTOR 1000000
@@ -2751,8 +2755,11 @@ static void textInputV3Enter(void* data,
                              struct zwp_text_input_v3* textInputV3,
                              struct wl_surface* surface)
 {
+    _GLFWwindow* window = (_GLFWwindow*) data;
     zwp_text_input_v3_enable(textInputV3);
     zwp_text_input_v3_commit(textInputV3);
+    window->wl.textInputStatus = GLFW_TRUE;
+    _glfwInputIMEStatus(window);
 }
 
 static void textInputV3Reset(_GLFWwindow* window)
@@ -2774,6 +2781,8 @@ static void textInputV3Leave(void* data,
     _GLFWwindow* window = (_GLFWwindow*) data;
     zwp_text_input_v3_disable(textInputV3);
     zwp_text_input_v3_commit(textInputV3);
+    window->wl.textInputStatus = GLFW_FALSE;
+    _glfwInputIMEStatus(window);
 
     // Although this should be handled by IM via preedit callback, it seems that
     // the behavior varies depending on implemention. It's cleared by IM on
@@ -4355,11 +4364,39 @@ void _glfwResetPreeditTextWayland(_GLFWwindow* window)
 
 void _glfwSetIMEStatusWayland(_GLFWwindow* window, int active)
 {
+    if(active == GLFW_TRUE)
+    {
+        if (window->wl.textInputV3){
+            zwp_text_input_v3_enable(window->wl.textInputV3);
+            zwp_text_input_v3_commit(window->wl.textInputV3);
+            window->wl.textInputStatus = GLFW_TRUE;
+            _glfwInputIMEStatus(window);
+        }
+        else if (window->wl.textInputV1)
+            activateTextInputV1(window);
+    }
+    else
+    {
+        if (window->wl.textInputV3){
+            zwp_text_input_v3_disable(window->wl.textInputV3);
+            zwp_text_input_v3_commit(window->wl.textInputV3);
+            window->wl.textInputStatus = GLFW_FALSE;
+            _glfwInputIMEStatus(window);
+
+            // Although this should be handled by IM via preedit callback, it seems that
+            // the behavior varies depending on implemention. It's cleared by IM on
+            // Ubuntu 22.04 but not cleared on Ubuntu 20.04.
+            textInputV3Reset(window);
+        }
+        else if (window->wl.textInputV1)
+            deactivateTextInputV1(window);
+    }
 }
 
 int _glfwGetIMEStatusWayland(_GLFWwindow* window)
 {
-    return GLFW_FALSE;
+    fprintf(stderr, "textInputStatus: %d\n", window->wl.textInputStatus);
+    return window->wl.textInputStatus;
 }
 
 EGLenum _glfwGetEGLPlatformWayland(EGLint** attribs)
