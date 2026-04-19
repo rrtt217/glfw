@@ -402,6 +402,8 @@ typedef struct _GLFWDXGIFallbackWin32
     uint32_t            swapchainFormat;
     uint32_t            colorPrimaries;
     uint32_t            colorTransfer;
+    int                 pendingResizeWidth;
+    int                 pendingResizeHeight;
 } _GLFWDXGIFallbackWin32;
 
 // Win32-specific per-window data
@@ -562,6 +564,11 @@ GLFWbool _glfwCreateDXGIFallbackWin32(_GLFWwindow* window,
 void _glfwDestroyDXGIFallbackWin32(_GLFWwindow* window);
 void _glfwResizeDXGIFallbackWin32(_GLFWwindow* window, int width, int height);
 void _glfwSwapBuffersDXGIFallbackWin32(_GLFWwindow* window);
+void _glfwCompletePendingDXGIResizeWin32(_GLFWwindow* window);
+int  _glfwGetPendingDXGIResizeWin32(_GLFWwindow* window);
+void _glfwReleaseCurrentContextWin32(void);
+void _glfwReacquireCurrentContextWin32(_GLFWwindow* window);
+int  _glfwGetPendingDXGIResizeHeightWin32(_GLFWwindow* window);
 float _glfwGetWindowMaxLuminanceDXGIWin32(_GLFWwindow *window);
 float _glfwGetWindowMinLuminanceDXGIWin32(_GLFWwindow *window);
 uint32_t _glfwGetWindowSwapchainImageTextureWin32(_GLFWwindow* window);
