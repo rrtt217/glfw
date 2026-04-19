@@ -697,6 +697,65 @@ GLFWAPI uint32_t glfwGetWindowSwapchainImageTexture(GLFWwindow* handle)
 #endif
 }
 
+GLFWAPI void glfwCompletePendingDXGIResize(GLFWwindow* handle)
+{
+    _GLFW_REQUIRE_INIT();
+
+    _GLFWwindow* window = (_GLFWwindow*) handle;
+    assert(window != NULL);
+
+#if defined(_GLFW_WIN32)
+    _glfwCompletePendingDXGIResizeWin32(window);
+#else
+    (void) window;
+#endif
+}
+
+GLFWAPI int glfwGetPendingDXGIResize(GLFWwindow* handle)
+{
+    _GLFW_REQUIRE_INIT_OR_RETURN(0);
+
+    _GLFWwindow* window = (_GLFWwindow*) handle;
+    assert(window != NULL);
+
+#if defined(_GLFW_WIN32)
+    return _glfwGetPendingDXGIResizeWin32(window);
+#else
+    (void) window;
+    return 0;
+#endif
+}
+
+GLFWAPI int glfwGetPendingDXGIResizeHeight(GLFWwindow* handle)
+{
+    _GLFW_REQUIRE_INIT_OR_RETURN(0);
+    _GLFWwindow* window = (_GLFWwindow*) handle;
+    assert(window != NULL);
+#if defined(_GLFW_WIN32)
+    return _glfwGetPendingDXGIResizeHeightWin32(window);
+#else
+    (void) window;
+    return 0;
+#endif
+}
+
+GLFWAPI void glfwReleaseCurrentContext(void)
+{
+#if defined(_GLFW_WIN32)
+    _glfwReleaseCurrentContextWin32();
+#endif
+}
+
+GLFWAPI void glfwReacquireCurrentContext(GLFWwindow* handle)
+{
+#if defined(_GLFW_WIN32)
+    _GLFWwindow* window = (_GLFWwindow*) handle;
+    assert(window != NULL);
+    _glfwReacquireCurrentContextWin32(window);
+#else
+    (void) handle;
+#endif
+}
 
 GLFWAPI void glfwGetWindowSize(GLFWwindow* handle, int* width, int* height)
 {

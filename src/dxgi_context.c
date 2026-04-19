@@ -1108,17 +1108,31 @@ void _glfwResizeDXGIFallbackWin32(_GLFWwindow *window, int width, int height) {
                         (unsigned long)hr);
 
         GetClientRect(window->win32.handle, &rect);
-        if (!createInteropSurface(
-                window, rect.right - rect.left > 0 ? rect.right - rect.left : 1,
-                rect.bottom - rect.top > 0 ? rect.bottom - rect.top : 1)) {
-            if (handleDXGIError(window, "resize recovery", hr))
-                return;
+        width  = rect.right  - rect.left > 0 ? rect.right  - rect.left : 1;
+        height = rect.bottom - rect.top  > 0 ? rect.bottom - rect.top  : 1;
+    }
 
-            disableDXGIFallbackWin32(window, "resize recovery", hr);
-        }
-
+    /* createInteropSurface() calls wglMakeCurrent which requires the GL
+     * context to be available on the calling thread.  When a threading shim
+     * such as Ixeris owns the context on the render thread, this call can
+     * arrive on a different thread (e.g. the GLFW event-polling thread
+     * processing WM_SIZE inside glfwPollEvents) where wglMakeCurrent will
+     * fail with E_ACCESSDENIED (0x80004005).
+     *
+     * Detect this by checking whether the calling thread currently owns the
+     * window's GL context via GLFW's TLS context slot.  If it does not, store
+     * the target dimensions and return — the surface will be (re)created the
+     * next time glfwGetWindowSwapchainImageTexture is called, which is
+     * expected to happen from the render thread that owns the context. */
+    if (_glfwPlatformGetTls(&_glfw.contextSlot) != window) {
+        window->win32.dxgi.pendingResizeWidth  = width;
+        window->win32.dxgi.pendingResizeHeight = height;
         return;
     }
+
+    /* GL context is available on this thread — create the surface now. */
+    window->win32.dxgi.pendingResizeWidth  = 0;
+    window->win32.dxgi.pendingResizeHeight = 0;
 
     if (!createInteropSurface(window, width, height)) {
         if (handleDXGIError(window, "interop surface recreation", E_FAIL))
@@ -1130,6 +1144,53 @@ void _glfwResizeDXGIFallbackWin32(_GLFWwindow *window, int width, int height) {
 
     configureSwapchainColorSpace(window,
                                  (IDXGISwapChain *)window->win32.dxgi.swapchain);
+}
+
+
+/* Releases the WGL context current on the calling thread (render thread under
+ * Ixeris).  Called from Java before dispatching glfwCompletePendingDXGIResize
+ * to the main thread, so no WGL context is active when the main thread tries
+ * to make the helper context current via wglMakeCurrent(helperDC, helperRC). */
+void _glfwReleaseCurrentContextWin32(void) {
+    wglMakeCurrent(NULL, NULL);
+}
+
+/* Re-acquires Minecraft's WGL context on the calling thread (render thread)
+ * after glfwCompletePendingDXGIResize has returned.  Updates GLFW's TLS
+ * context slot so subsequent GLFW context queries return the correct window. */
+void _glfwReacquireCurrentContextWin32(_GLFWwindow *window) {
+    if (window->context.wgl.dc && window->context.wgl.handle) {
+        if (wglMakeCurrent(window->context.wgl.dc, window->context.wgl.handle))
+            _glfwPlatformSetTls(&_glfw.contextSlot, window);
+    }
+}
+
+void _glfwCompletePendingDXGIResizeWin32(_GLFWwindow *window) {
+    if (window->win32.dxgi.pendingResizeWidth <= 0 ||
+        !window->win32.dxgi.interopActive)
+        return;
+
+    int w = window->win32.dxgi.pendingResizeWidth;
+    int h = window->win32.dxgi.pendingResizeHeight;
+    window->win32.dxgi.pendingResizeWidth  = 0;
+    window->win32.dxgi.pendingResizeHeight = 0;
+    wglMakeCurrent(NULL, NULL);
+
+    if (!createInteropSurface(window, w, h)) {
+        if (!handleDXGIError(window, "complete pending resize", E_FAIL))
+            disableDXGIFallbackWin32(window, "complete pending resize", E_FAIL);
+        return;
+    }
+    configureSwapchainColorSpace(window,
+                                 (IDXGISwapChain *)window->win32.dxgi.swapchain);
+}
+
+int _glfwGetPendingDXGIResizeWin32(_GLFWwindow *window) {
+    return window->win32.dxgi.pendingResizeWidth;
+}
+
+int _glfwGetPendingDXGIResizeHeightWin32(_GLFWwindow *window) {
+    return window->win32.dxgi.pendingResizeHeight;
 }
 
 void _glfwSwapBuffersDXGIFallbackWin32(_GLFWwindow *window) {
