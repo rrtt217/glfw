@@ -722,8 +722,6 @@ static void activateTextInputV1(_GLFWwindow* window)
         return;
     zwp_text_input_v1_show_input_panel(window->wl.textInputV1);
     zwp_text_input_v1_activate(window->wl.textInputV1, _glfw.wl.seat, window->wl.surface);
-    window->wl.textInputStatus = GLFW_TRUE;
-    _glfwInputIMEStatus(window);
 }
 
 static void deactivateTextInputV1(_GLFWwindow* window)
@@ -732,8 +730,6 @@ static void deactivateTextInputV1(_GLFWwindow* window)
         return;
     zwp_text_input_v1_hide_input_panel(window->wl.textInputV1);
     zwp_text_input_v1_deactivate(window->wl.textInputV1, _glfw.wl.seat);
-    window->wl.textInputStatus = GLFW_FALSE;
-    _glfwInputIMEStatus(window);
 }
 
 #define WAYLAND_COLOR_FACTOR 1000000
@@ -949,7 +945,9 @@ static void xdgToplevelHandleConfigure(void* userData,
                 break;
             case XDG_TOPLEVEL_STATE_ACTIVATED:
                 window->wl.pending.activated = GLFW_TRUE;
-                activateTextInputV1(window);
+                if(window->wl.textInputStatus == GLFW_TRUE){
+                    activateTextInputV1(window);
+                }
                 break;
         }
     }
@@ -2017,7 +2015,9 @@ static void pointerHandleButton(void* userData,
     // On weston, pressing the title bar will cause leave event and never emit
     // enter event even though back to content area by pressing mouse button
     // just after it. So activate it here explicitly.
-    activateTextInputV1(window);
+    if(window->wl.textInputStatus == GLFW_TRUE){
+        activateTextInputV1(window);
+    }
 
     if (window->wl.fallback.decorations)
     {
@@ -2641,10 +2641,16 @@ static void textInputV3Enter(void* data,
                              struct wl_surface* surface)
 {
     _GLFWwindow* window = (_GLFWwindow*) data;
-    zwp_text_input_v3_enable(textInputV3);
-    zwp_text_input_v3_commit(textInputV3);
-    window->wl.textInputStatus = GLFW_TRUE;
-    _glfwInputIMEStatus(window);
+    // Recover the original state when regaining focus.
+    // Note that default original state is off; client must explicitly enable IME.
+    if(window->wl.textInputStatus == GLFW_TRUE){
+        zwp_text_input_v3_enable(textInputV3);
+        zwp_text_input_v3_commit(textInputV3);
+    }
+    else{
+        zwp_text_input_v3_disable(textInputV3);
+        zwp_text_input_v3_commit(textInputV3);
+    }
 }
 
 static void textInputV3Reset(_GLFWwindow* window)
@@ -2666,11 +2672,12 @@ static void textInputV3Leave(void* data,
     _GLFWwindow* window = (_GLFWwindow*) data;
     zwp_text_input_v3_disable(textInputV3);
     zwp_text_input_v3_commit(textInputV3);
-    window->wl.textInputStatus = GLFW_FALSE;
-    _glfwInputIMEStatus(window);
+    // Do not set textInputStatus to false; we want to recover the original state when regaining focus.
+    // window->wl.textInputStatus = GLFW_FALSE;
+    // _glfwInputIMEStatus(window);
 
     // Although this should be handled by IM via preedit callback, it seems that
-    // the behavior varies depending on implemention. It's cleared by IM on
+    // the behavior varies depending on implementation. It's cleared by IM on
     // Ubuntu 22.04 but not cleared on Ubuntu 20.04.
     textInputV3Reset(window);
 }
@@ -2806,7 +2813,12 @@ static void textInputV1Enter(void* data,
                              struct wl_surface* surface)
 {
     _GLFWwindow* window = (_GLFWwindow*) data;
-    activateTextInputV1(window);
+    if(window->wl.textInputStatus == GLFW_TRUE){
+        activateTextInputV1(window);
+    }
+    else{
+        deactivateTextInputV1(window);
+    }
 }
 
 static void textInputV1Reset(_GLFWwindow* window)
@@ -4254,27 +4266,28 @@ void _glfwSetIMEStatusWayland(_GLFWwindow* window, int active)
         if (window->wl.textInputV3){
             zwp_text_input_v3_enable(window->wl.textInputV3);
             zwp_text_input_v3_commit(window->wl.textInputV3);
-            window->wl.textInputStatus = GLFW_TRUE;
-            _glfwInputIMEStatus(window);
         }
-        else if (window->wl.textInputV1)
+        else if (window->wl.textInputV1){
             activateTextInputV1(window);
+        }
+        window->wl.textInputStatus = GLFW_TRUE;
+        _glfwInputIMEStatus(window);
     }
     else
     {
         if (window->wl.textInputV3){
             zwp_text_input_v3_disable(window->wl.textInputV3);
             zwp_text_input_v3_commit(window->wl.textInputV3);
-            window->wl.textInputStatus = GLFW_FALSE;
-            _glfwInputIMEStatus(window);
-
             // Although this should be handled by IM via preedit callback, it seems that
             // the behavior varies depending on implemention. It's cleared by IM on
             // Ubuntu 22.04 but not cleared on Ubuntu 20.04.
             textInputV3Reset(window);
         }
-        else if (window->wl.textInputV1)
+        else if (window->wl.textInputV1){
             deactivateTextInputV1(window);
+        }
+        window->wl.textInputStatus = GLFW_FALSE;
+        _glfwInputIMEStatus(window);
     }
 }
 
