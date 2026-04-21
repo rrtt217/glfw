@@ -476,6 +476,7 @@ typedef struct _GLFWlibraryWayland
         GLFWbool tfs[14];
         GLFWbool intents[5];
     } colorManagerSupport;
+    struct xdg_toplevel_icon_manager_v1*    toplevelIconManager;
 
     _GLFWofferWayland*          offers;
     unsigned int                offerCount;

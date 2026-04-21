@@ -56,6 +56,7 @@
 #include "text-input-unstable-v1-client-protocol.h"
 #include "text-input-unstable-v3-client-protocol.h"
 #include "color-management-v1-client-protocol.h"
+#include "xdg-toplevel-icon-v1-client-protocol.h"
 
 // NOTE: Versions of wayland-scanner prior to 1.17.91 named every global array of
 //       wl_interface pointers 'types', making it impossible to combine several unmodified
@@ -112,6 +113,10 @@
 
 #define types _glfw_text_input_v3_types
 #include "text-input-unstable-v3-client-protocol-code.h"
+#undef types
+
+#define types _glfw_toplevel_icon_types
+#include "xdg-toplevel-icon-v1-client-protocol-code.h"
 #undef types
 
 static void wmBaseHandlePing(void* userData,
@@ -340,6 +345,13 @@ static void registryHandleGlobal(void* userData,
             memset(&_glfw.wl.colorManagerSupport, 0, sizeof(_glfw.wl.colorManagerSupport));
             wp_color_manager_v1_add_listener(_glfw.wl.colorManager, &colorManagerListener, &_glfw.wl);
         }
+    }
+    else if (strcmp(interface, xdg_toplevel_icon_manager_v1_interface.name) == 0)
+    {
+        _glfw.wl.toplevelIconManager =
+            wl_registry_bind(registry, name,
+                             &xdg_toplevel_icon_manager_v1_interface,
+                             1);
     }
 }
 
@@ -1147,6 +1159,8 @@ void _glfwTerminateWayland(void)
         zwp_text_input_manager_v3_destroy(_glfw.wl.textInputManagerV3);
     if (_glfw.wl.colorManager)
         wp_color_manager_v1_destroy(_glfw.wl.colorManager);
+    if (_glfw.wl.toplevelIconManager)
+        xdg_toplevel_icon_manager_v1_destroy(_glfw.wl.toplevelIconManager);
     if (_glfw.wl.registry)
         wl_registry_destroy(_glfw.wl.registry);
     if (_glfw.wl.display)
