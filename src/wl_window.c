@@ -3128,6 +3128,7 @@ GLFWbool _glfwCreateWindowWayland(_GLFWwindow* window,
             zwp_text_input_manager_v3_get_text_input(_glfw.wl.textInputManagerV3, _glfw.wl.seat);
         zwp_text_input_v3_add_listener(window->wl.textInputV3,
                                        &textInputV3Listener, window);
+        window->wl.textInputStatus = GLFW_TRUE;
     }
     else if (_glfw.wl.textInputManagerV1)
     {
@@ -3135,6 +3136,7 @@ GLFWbool _glfwCreateWindowWayland(_GLFWwindow* window,
             zwp_text_input_manager_v1_create_text_input(_glfw.wl.textInputManagerV1);
         zwp_text_input_v1_add_listener(window->wl.textInputV1,
                                        &textInputV1Listener, window);
+        window->wl.textInputStatus = GLFW_TRUE;
     }
 
     return GLFW_TRUE;
