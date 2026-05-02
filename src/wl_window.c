@@ -1688,7 +1688,7 @@ static void handleEvents(double* timeout)
         while (wl_display_prepare_read(_glfw.wl.display) != 0)
         {
             if (wl_display_dispatch_pending(_glfw.wl.display) > 0)
-                event = GLFW_TRUE;
+                return;
         }
 
         // If an error other than EAGAIN happens, we have likely been disconnected
