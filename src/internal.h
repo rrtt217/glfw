@@ -379,6 +379,7 @@ struct _GLFWinitconfig
     GLFWbool      hatButtons;
     int           angleType;
     int           platformID;
+    GLFWbool      managePreedit;
     GLFWbool      managePreeditCandidate;
     PFN_vkGetInstanceProcAddr vulkanLoader;
     struct {

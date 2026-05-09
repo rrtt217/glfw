@@ -52,6 +52,7 @@ static _GLFWinitconfig _glfwInitHints =
     .hatButtons = GLFW_TRUE,
     .angleType = GLFW_ANGLE_PLATFORM_TYPE_NONE,
     .platformID = GLFW_ANY_PLATFORM,
+    .managePreedit = GLFW_TRUE,
     .managePreeditCandidate = GLFW_FALSE,
     .vulkanLoader = NULL,
     .ns =
@@ -478,6 +479,9 @@ GLFWAPI void glfwInitHint(int hint, int value)
             return;
         case GLFW_MANAGE_PREEDIT_CANDIDATE:
             _glfwInitHints.managePreeditCandidate = value;
+            return;
+        case GLFW_MANAGE_PREEDIT:
+            _glfwInitHints.managePreedit = value;
             return;
         case GLFW_COCOA_CHDIR_RESOURCES:
             _glfwInitHints.ns.chdir = value;

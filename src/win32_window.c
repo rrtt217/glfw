@@ -918,8 +918,8 @@ static LRESULT CALLBACK windowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM l
         {
             // To draw preedit text by an application side
             // However this is not optimal, consider adding a new _glfw.hints.init.managePreedit in the future.
-            //if (lParam & ISC_SHOWUICOMPOSITIONWINDOW)
-            //    lParam &= ~ISC_SHOWUICOMPOSITIONWINDOW;
+            if (lParam & ISC_SHOWUICOMPOSITIONWINDOW && _glfw.hints.init.managePreeditCandidate)
+                lParam &= ~ISC_SHOWUICOMPOSITIONWINDOW;
 
             if (_glfw.hints.init.managePreeditCandidate &&
                 (lParam & ISC_SHOWUICANDIDATEWINDOW))
@@ -1158,7 +1158,7 @@ static LRESULT CALLBACK windowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM l
 
         case WM_IME_COMPOSITION:
         {
-            if (lParam & (GCS_RESULTSTR | GCS_COMPSTR))
+            if (lParam & (GCS_RESULTSTR | GCS_COMPSTR) && _glfw.hints.init.managePreedit)
             {
                 if (lParam & GCS_RESULTSTR)
                     commitImmResultStr(window);
@@ -1171,11 +1171,13 @@ static LRESULT CALLBACK windowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM l
 
         case WM_IME_ENDCOMPOSITION:
         {
-            clearImmPreedit(window);
-            // Usually clearing candidates in IMN_CLOSECANDIDATE is sufficient.
-            // However, some IME need it here, e.g. Google Japanese Input.
-            clearImmCandidate(window);
-            return TRUE;
+            if(_glfw.hints.init.managePreedit){
+                clearImmPreedit(window);
+                // Usually clearing candidates in IMN_CLOSECANDIDATE is sufficient.
+                // However, some IME need it here, e.g. Google Japanese Input.
+                clearImmCandidate(window);
+                return TRUE;
+            }
         }
 
         case WM_IME_NOTIFY:

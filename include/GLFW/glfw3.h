@@ -1336,6 +1336,11 @@ extern "C" {
  *  Preedit candidate [init hint](@ref GLFW_MANAGE_PREEDIT_CANDIDATE_hint).
  */
 #define GLFW_MANAGE_PREEDIT_CANDIDATE 0x00050004
+/*! @brief Preedit init hint.
+ *
+ *  Preedit candidate [init hint](@ref GLFW_MANAGE_PREEDIT_CANDIDATE_hint).
+ */
+#define GLFW_MANAGE_PREEDIT 0x00050005
 /*! @brief macOS specific init hint.
  *
  *  macOS specific [init hint](@ref GLFW_COCOA_CHDIR_RESOURCES_hint).
