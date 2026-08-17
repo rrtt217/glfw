@@ -37,6 +37,11 @@
 #include <shellapi.h>
 #include <wchar.h>
 
+#define COBJMACROS
+#include <dxgi.h>
+#include <dxgi1_6.h>
+#undef COBJMACROS
+
 // Converts utf16 units to Unicode code points (UTF32).
 // Returns GLFW_TRUE when the converting completes and the result is assigned to
 // the argument `codepoint`.
@@ -2097,14 +2102,15 @@ void _glfwSetWindowPosWin32(_GLFWwindow* window, int xpos, int ypos)
 }
 
 float _glfwGetWindowSdrWhiteLevelWin32(_GLFWwindow* window) {
-    if (window->bitsPerSample <= 8) {
+    // When we have an "External" DXGI attached to GLFW window, window->bitsPerSample would be imprecise. So just skip the check.
+    //if (window->bitsPerSample <= 8) {
         // If we don't have a bpc > 8 frame buffer, Windows does not expect scRGB
         // with proper SDR white level scaling, it instead expects standard
         // sRGB whose reference white level should be 80 nits. (Even though the
         // screen's reference white level -- obtained by the bottom code --
         // might be different. In that case Windows does the remapping for us.)
-        return 80.0f;
-    }
+        // return 80.0f;
+    //}
 
     UINT32 numPaths, numModes;
     LONG result;
@@ -2199,10 +2205,48 @@ float _glfwGetWindowSdrWhiteLevelWin32(_GLFWwindow* window) {
     return 80.0f; // sRGB standard white level
 }
 
+// Queries the DXGI factory directly (independent of the DXGI fallback context)
+// to fill `desc` with the output descriptor of the monitor the window is on.
+static GLFWbool getWindowOutputDesc1Win32(_GLFWwindow* window, DXGI_OUTPUT_DESC1* desc) {
+    IDXGIFactory1 *dxgiFactory;
+    if (FAILED(CreateDXGIFactory1(&IID_IDXGIFactory1, (void **)&dxgiFactory)))
+        return GLFW_FALSE;
+
+    const HMONITOR hMonitor = MonitorFromWindow(window->win32.handle, MONITOR_DEFAULTTONEAREST);
+    IDXGIAdapter1 *dxgiAdapter;
+    UINT adapter = 0;
+    while (SUCCEEDED(IDXGIFactory1_EnumAdapters1(dxgiFactory, adapter, &dxgiAdapter))) {
+        IDXGIOutput *dxgiOutput;
+        UINT output = 0;
+        while (SUCCEEDED(IDXGIAdapter1_EnumOutputs(dxgiAdapter, output, &dxgiOutput))) {
+            IDXGIOutput6 *dxgiOutput6;
+            if (SUCCEEDED(IDXGIOutput_QueryInterface(dxgiOutput, &IID_IDXGIOutput6, (void **)&dxgiOutput6))) {
+                if (SUCCEEDED(IDXGIOutput6_GetDesc1(dxgiOutput6, desc)) && desc->Monitor == hMonitor) {
+                    IDXGIOutput6_Release(dxgiOutput6);
+                    IDXGIOutput_Release(dxgiOutput);
+                    IDXGIAdapter1_Release(dxgiAdapter);
+                    IDXGIFactory1_Release(dxgiFactory);
+                    return GLFW_TRUE;
+                }
+                IDXGIOutput6_Release(dxgiOutput6);
+            }
+            IDXGIOutput_Release(dxgiOutput);
+            ++output;
+        }
+        IDXGIAdapter1_Release(dxgiAdapter);
+        ++adapter;
+    }
+    IDXGIFactory1_Release(dxgiFactory);
+    return GLFW_FALSE;
+}
+
 float _glfwGetWindowMinLuminanceWin32(_GLFWwindow* window) {
     if (window->win32.dxgi.interopActive) {
         return _glfwGetWindowMinLuminanceDXGIWin32(window);
     }
+    DXGI_OUTPUT_DESC1 desc;
+    if (getWindowOutputDesc1Win32(window, &desc))
+        return desc.MinLuminance;
     return 0.0f;
 }
 
@@ -2296,6 +2340,9 @@ float _glfwGetWindowMaxLuminanceWin32(_GLFWwindow* window) {
     if (window->win32.dxgi.interopActive) {
         return _glfwGetWindowMaxLuminanceDXGIWin32(window);
     }
+    DXGI_OUTPUT_DESC1 desc;
+    if (getWindowOutputDesc1Win32(window, &desc))
+        return desc.MaxLuminance;
     // If advanced color is not enabled, return standard sRGB max luminance (not HDR).
     // Otherwise return 0.0 to indicate no known limit.
     return window->bitsPerSample == 16 && _glfwGetWindowAdvancedColorEnabledWin32(window) ? 0.0f : 80.0f;
